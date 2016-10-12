@@ -95,7 +95,22 @@ class Cache(object):
                 return function(*args, **kwargs)
         return use_cached_results
 
-
+class TimingModelMeta(type):
+    """Metaclass used to register all TimingModel-derived subclasses
+    for use in building complete models.  The registry is kept as a 
+    class variable, TimingModel._components.  Composite subclasses 
+    constructed by generate_timing_model() are flagged as such and 
+    not included."""
+    def __init__(cls, name, bases, members):
+        regname = '_components'
+        if not hasattr(cls,regname):
+            setattr(cls, regname, {})
+        elif not cls._composite:
+            d = getattr(cls,regname)
+            k = cls.__module__
+            if k not in d.keys(): d[k] = set()
+            d[k].add(cls)
+        super(TimingModelMeta, cls).__init__(name, bases, members)
 
 class TimingModel(object):
     """Base-level object provids an interface for implementing pulsar timing
@@ -127,6 +142,10 @@ class TimingModel(object):
     to the ComponentsList in the top of model_builder.py file. Note: In the future
     this will be automaticly detected.
     """
+
+    __metaclass__ = TimingModelMeta
+    _composite = False
+
     def __init__(self):
         self.params = []  # List of model parameter names
         self.prefix_params = []  # List of model parameter names
@@ -523,6 +542,7 @@ def generate_timing_model(name, components, attributes={}):
             raise(TypeError("generate_timing_model() Arg 2"+
                             "has to be a tuple of classes"))
 
+    attributes['_composite'] = True
     return type(name, components, attributes)
 
 class TimingModelError(Exception):
