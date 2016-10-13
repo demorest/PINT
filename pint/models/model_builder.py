@@ -6,37 +6,8 @@ import os
 from .timing_model import generate_timing_model, TimingModel
 from pint.utils import split_prefixed_name
 from .parameter import prefixParameter
-import os, inspect, fnmatch
-import glob
-import sys
+import os
 
-def get_componets():
-    timing_comps = {}
-    path = os.path.dirname(os.path.abspath(__file__))
-    for root, dirnames, filenames in os.walk(path):
-        for filename in fnmatch.filter(filenames, '*.py'):
-            if filename == '__init__.py':
-                continue
-            mod_root_start = root.find('pint/models')
-            if mod_root_start + len('pint/models') > len(root):
-                mod_root = ''
-            else:
-                mod_root = root[mod_root_start + len('pint/models/'):]
-            mod = os.path.join(mod_root, filename).replace("/", ".")[:-3]
-            exec('import %s as tmp' % mod)
-            s = set()
-            for k, v in tmp.__dict__.items():
-                if inspect.isclass(v) and issubclass(v, TimingModel):
-                    if k == 'TimingModel':
-                        continue
-                    s.add(v)
-                if s != set():
-                    timing_comps[tmp.__name__] = s
-    return timing_comps
-
-ComponentsList = get_componets()
-
-default_models = ["StandardTimingModel",]
 class model_builder(object):
     """A class for model construction interface.
         Parameters
@@ -78,7 +49,7 @@ class model_builder(object):
         self.param_inparF = None
         self.param_unrecognized = {}
         self.param_inModel = []
-        self.comps = ComponentsList
+        self.comps = TimingModel._components
         self.prefix_names = None
         self.param_prefix = {}
         self.select_comp = []

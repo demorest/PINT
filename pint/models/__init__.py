@@ -4,17 +4,17 @@
 # Import the main timing model classes
 from .timing_model import TimingModel, generate_timing_model
 
-# Import all standard model components here
-from .astrometry import AstrometryEquatorial
-from .dispersion_model import Dispersion
-from .spindown import Spindown
-from .solar_system_shapiro import SolarSystemShapiro
+# Import all standard model components here.  Note, this is necessary
+# for model components that we want available to model_builder.
+from . import astrometry, dispersion_model, spindown, solar_system_shapiro, \
+        frequency_dependent, jump, glitch, \
+        pulsar_binary, binary_bt, binary_dd, binary_ell1
+
 from .model_builder import get_model
 
 # Define a standard basic model
 StandardTimingModel = generate_timing_model("StandardTimingModel",
-        (AstrometryEquatorial, Spindown, Dispersion, SolarSystemShapiro))
-# BTTimingModel = generate_timing_model("BTTimingModel",
-#         (Astrometry, Spindown, Dispersion, SolarSystemShapiro, BT))
-# DDTimingModel = generate_timing_model("DDTimingModel",
-#         (Astrometry, Spindown, Dispersion, SolarSystemShapiro, DD))
+        (astrometry.AstrometryEquatorial, 
+            spindown.Spindown, 
+            dispersion_model.Dispersion, 
+            solar_system_shapiro.SolarSystemShapiro))
