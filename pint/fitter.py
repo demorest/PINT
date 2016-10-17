@@ -55,8 +55,8 @@ class fitter(object):
         Ex. fitter.set_params({'F0':60.1,'F1':-1.3e-15})
         """
         for k, v in fitp.items():
-            getattr(self.model, k).value = v.value if has_astropy_unit(v) else v
-
+            getattr(self.model, k).value = v
+            
     def minimize_func(self, x, *args):
         """Wrapper function for the residual class, meant to be passed to
         scipy.optimize.minimize. The function must take a single list of input
