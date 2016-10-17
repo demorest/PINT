@@ -120,6 +120,10 @@ class DispersionDMX(Dispersion):
             errorMsg += 'equals to Number of DMXR2_ parameters. '
             errorMsg += 'Please check your prefixed parameters.'
             raise AttributeError(errorMsg)
+        # create d_delay_d_dmx functions
+        for prefix_par in self.get_params_of_type('prefixParameter'):
+            if prefix_par.startswith('DMX_'):
+                self.make_delay_dmx_deriv_funcs(prefix_par)
 
     def dmx_dm(self, toas):
         # Set toas to the right DMX peiod.
@@ -148,5 +152,37 @@ class DispersionDMX(Dispersion):
                 dm[ind] = dmx
         return dm
 
-    def d_delay_dmx_d_DMX(self, toas):
-        pass
+    def d_delay_d_DMX(self, param, toas):
+        dmx_index = param.index
+        try:
+            bfreq = self.barycentric_radio_freq(toas)
+        except AttributeError:
+            warn("Using topocentric frequency for dedispersion!")
+            bfreq = toas['freq']
+
+        d_delay_d_dmx = np.zeros(len(toas)) * u.second / self.DM.units
+        if 'DMX_section' not in toas.keys():
+            toas['DMX_section'] = np.zeros_like(toas['index'])
+            epoch_ind = 1
+            while epoch_ind in DMX_mapping:
+                # Get the parameters
+                r1 = getattr(self, DMXR1_mapping[epoch_ind]).quantity
+                r2 = getattr(self, DMXR2_mapping[epoch_ind]).quantity
+                msk = np.logical_and(toas['mjd_float'] >= r1.mjd, toas['mjd_float'] <= r2.mjd)
+                toas['DMX_section'][msk] = epoch_ind
+                epoch_ind = epoch_ind + 1
+
+        DMX_group = toas.group_by('DMX_section')
+        grp_msk = DMX_group.groups.keys['DMX_section'] == dmx_index
+        selected_grp = DMX_group.groups[grp_msk]
+        d_delay_d_dmx[selected_grp['index']] = DMconst / bfreq**2.0
+        return d_delay_d_dmx
+
+    def make_delay_dmx_deriv_funcs(self, param):
+        """Make jump delay derivitve
+        """
+        def deriv_func(toas):
+            dmx_p = getattr(self, param)
+            return self.d_delay_d_DMX(dmx_p, toas)
+        deriv_func.__name__ = 'd_delay_d_' + param
+        setattr(self, 'd_delay_d_' + param, deriv_func)
