@@ -335,12 +335,11 @@ class TimingModel(object):
     #@Cache.use_cache
     def d_phase_d_param_num(self, toas, param, step=1e-2):
         """ Return the derivative of phase with respect to the parameter.
-
-        NOT implemented yet.
         """
-        # TODO : We need to know the range of parameter. 
+        # TODO : We need to know the range of parameter.
         par = getattr(self, param)
         ori_value = par.value
+        unit = par.units
         if ori_value == 0:
             h = 1.0 * step
         else:
@@ -351,12 +350,14 @@ class TimingModel(object):
         phaseF = np.zeros((len(toas),2))
         for ii, val in enumerate(parv):
             par.value = val
-            phaseI[:,ii] = self.phase(t.table).int
-            phaseF[:,ii] = self.phase(t.table).frac
-        resI = (- phaseI[:,0] + phaseI[:,0])
-        resF = (- phaseF[:,0] + phaseF[:,0])
+            phaseI[:,ii] = self.phase(toas).int
+            phaseF[:,ii] = self.phase(toas).frac
+        resI = (- phaseI[:,0] + phaseI[:,1])
+        resF = (- phaseF[:,0] + phaseF[:,1])
         result = (resI + resF)/(2.0 * h)
-        return result
+        # shift value back to the original value
+        par.value = ori_value
+        return result * u.Unit("")/unit
 
     def d_delay_d_param(self, toas, param):
         """
