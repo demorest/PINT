@@ -125,6 +125,7 @@ class DispersionDMX(Dispersion):
             if prefix_par.startswith('DMX_'):
                 self._make_delay_derivative_funcs(prefix_par, self.d_delay_d_DMX, 'd_delay_d_')
                 self.delay_derivs += [getattr(self, 'd_delay_d_'+prefix_par)]
+
     def dmx_dm(self, toas):
         # Set toas to the right DMX peiod.
         DMX_mapping = self.get_prefix_mapping('DMX_')
@@ -160,7 +161,7 @@ class DispersionDMX(Dispersion):
         except AttributeError:
             warn("Using topocentric frequency for dedispersion!")
             bfreq = toas['freq']
-        d_delay_d_dmx = np.zeros(len(toas)) * u.second / self.DM.units
+        dmx = np.zeros(len(toas))
         if 'DMX_section' not in toas.keys():
             DMX_mapping = self.get_prefix_mapping('DMX_')
             DMXR1_mapping = self.get_prefix_mapping('DMXR1_')
@@ -178,5 +179,6 @@ class DispersionDMX(Dispersion):
         DMX_group = toas.group_by('DMX_section')
         grp_msk = DMX_group.groups.keys['DMX_section'] == dmx_index
         selected_grp = DMX_group.groups[grp_msk]
-        d_delay_d_dmx[selected_grp['index']] = DMconst / bfreq**2.0
-        return d_delay_d_dmx
+        dmx[selected_grp['index']] = 1.0 
+
+        return DMconst * dmx / bfreq**2.0

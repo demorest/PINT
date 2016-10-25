@@ -133,6 +133,7 @@ class Spindown(TimingModel):
         pn, idxf, idxv = split_prefixed_name(param)
         order = idxv + 1
         fterms = [0.0] + self.get_spin_terms()
+        # make the choosen fterms 1 others 0
         fterms = numpy.longdouble(numpy.zeros(len(fterms)))
         fterms[order] = numpy.longdouble(1.0)
         dt_tzrmjd = (toas['tdbld'] - self.TZRMJDld) * SECS_PER_DAY - delay
