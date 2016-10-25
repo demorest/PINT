@@ -65,8 +65,8 @@ class Spindown(TimingModel):
 
         self.num_spin_terms = len(F_terms) + 1
         for fp in self.get_prefix_mapping('F').values() + ['F0',]:
-            self.make_spindown_phase_deriv_funcs(fp)
-
+            self._make_phase_derivative_funcs(fp, self.d_phase_d_F, 'd_phase_d_')
+            self.phase_derivs += [getattr(self, 'd_phase_d_' + fp)]
     def F_description(self, x):
         """Template function for description"""
         if x <1:
@@ -141,12 +141,3 @@ class Spindown(TimingModel):
         d_ptzrmjd_d_f = taylor_horner(dt_tzrmjd-dt_pepoch, fterms)
         d_ppepoch_d_f = taylor_horner(-dt_pepoch, fterms)
         return (d_ptzrmjd_d_f - d_ppepoch_d_f) * u.Unit("")/unit
-
-    def make_spindown_phase_deriv_funcs(self, param):
-        """This is a funcion to make binary derivative functions to the formate
-        of d_binary_delay_d_paramName(toas)
-        """
-        def deriv_func(toas, delay):
-            return self.d_phase_d_F(toas, param, delay)
-        deriv_func.__name__ = 'd_phase_d_' + param
-        setattr(self, 'd_phase_d_' + param, deriv_func)

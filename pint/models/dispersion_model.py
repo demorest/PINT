@@ -27,7 +27,7 @@ class Dispersion(TimingModel):
                        description="Dispersion measure"))
         self.dm_value_funcs = [self.constant_dm,]
         self.delay_funcs['L1'] += [self.dispersion_delay,]
-        self.delay_derivs += [self.d_delay_dispersion_d_DM,]
+        self.delay_derivs += [self.d_delay_d_DM,]
 
     def setup(self):
         super(Dispersion, self).setup()
@@ -61,7 +61,7 @@ class Dispersion(TimingModel):
 
         return self.dispersion_time_delay(dm, bfreq)
 
-    def d_delay_dispersion_d_DM(self, toas):
+    def d_delay_d_DM(self, toas):
         """Derivatives for constant DM
         """
         try:
@@ -123,8 +123,8 @@ class DispersionDMX(Dispersion):
         # create d_delay_d_dmx functions
         for prefix_par in self.get_params_of_type('prefixParameter'):
             if prefix_par.startswith('DMX_'):
-                self.make_delay_dmx_deriv_funcs(prefix_par)
-
+                self._make_delay_derivative_funcs(prefix_par, self.d_delay_d_DMX, 'd_delay_d_')
+                self.delay_derivs += [getattr(self, 'd_delay_d_'+prefix_par)]
     def dmx_dm(self, toas):
         # Set toas to the right DMX peiod.
         DMX_mapping = self.get_prefix_mapping('DMX_')
@@ -152,16 +152,19 @@ class DispersionDMX(Dispersion):
                 dm[ind] = dmx
         return dm
 
-    def d_delay_d_DMX(self, param, toas):
+    def d_delay_d_DMX(self, toas, param_name):
+        param = getattr(self, param_name)
         dmx_index = param.index
         try:
             bfreq = self.barycentric_radio_freq(toas)
         except AttributeError:
             warn("Using topocentric frequency for dedispersion!")
             bfreq = toas['freq']
-
         d_delay_d_dmx = np.zeros(len(toas)) * u.second / self.DM.units
         if 'DMX_section' not in toas.keys():
+            DMX_mapping = self.get_prefix_mapping('DMX_')
+            DMXR1_mapping = self.get_prefix_mapping('DMXR1_')
+            DMXR2_mapping = self.get_prefix_mapping('DMXR2_')
             toas['DMX_section'] = np.zeros_like(toas['index'])
             epoch_ind = 1
             while epoch_ind in DMX_mapping:
@@ -177,12 +180,3 @@ class DispersionDMX(Dispersion):
         selected_grp = DMX_group.groups[grp_msk]
         d_delay_d_dmx[selected_grp['index']] = DMconst / bfreq**2.0
         return d_delay_d_dmx
-
-    def make_delay_dmx_deriv_funcs(self, param):
-        """Make jump delay derivitve
-        """
-        def deriv_func(toas):
-            dmx_p = getattr(self, param)
-            return self.d_delay_d_DMX(dmx_p, toas)
-        deriv_func.__name__ = 'd_delay_d_' + param
-        setattr(self, 'd_delay_d_' + param, deriv_func)

@@ -23,8 +23,8 @@ class JumpDelay(TimingModel):
             if mask_par.startswith('JUMP'):
                 self.jumps.append(mask_par)
         for j in self.jumps:
-            self.make_delay_jump_deriv_funcs(j)
-            
+            self._make_delay_derivative_funcs(j, self.d_delay_d_jump, 'd_delay_d_')
+            self.delay_derivs += [getattr(self, 'd_delay_d_'+j)]
     def jump_delay(self, toas):
         """This method returns the jump delays for each toas section collected by
         jump parameters. The delay value is determined by jump parameter value
@@ -39,17 +39,9 @@ class JumpDelay(TimingModel):
             jdelay[mask] += -jump_par.value
         return jdelay
 
-    def d_delay_d_jump(self, jump_par, toas):
+    def d_delay_d_jump(self, toas, jump_param):
         d_delay_d_j = numpy.zeros(len(toas))
-        mask = jump_par.select_toa_mask(toas)
+        jpar = getattr(self, jump_param)
+        mask = jpar.select_toa_mask(toas)
         d_delay_d_j[mask] = 1.0
         return d_delay_d_j
-
-    def make_delay_jump_deriv_funcs(self, param):
-        """Make jump delay derivitve
-        """
-        def deriv_func(toas):
-            jump_p = getattr(self, param)
-            return self.d_delay_d_jump(jump_p, toas)
-        deriv_func.__name__ = 'd_delay_d_' + param
-        setattr(self, 'd_delay_d_' + param, deriv_func)
