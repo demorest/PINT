@@ -142,7 +142,7 @@ class TimingModel(object):
             aliases=["PSRJ", "PSRB"]))
         self.model_type = None
         self.delay_derivs = []
-
+        self.phase_derivs = []
     def setup(self):
         pass
 
@@ -240,6 +240,65 @@ class TimingModel(object):
         toasBary = toasObs*u.day - delay*u.second
         return toasBary
 
+    def _make_delay_derivative_funcs(self, param, function, name_tplt):
+        """This function is a method to help make the delay derivatives wrt timing
+        model parameters use the parameter specific name and only have the toas
+        table as input.
+        Parameter
+        ----------
+        param: str
+            Name of parameter
+        function: method
+            The method to compute the delay derivatives. It is generally in the
+            formate of function(toas, parameter)
+        name_tplt: str
+            The name template of the new function. The parameter name will be
+            added in the end. For example: 'd_delay_d_' is a name template.
+        Return
+        ---------
+        A delay derivative function wrt to input parameter name with the input
+        name template and parameter name.
+        """
+        def deriv_func(toas):
+            return function(toas, param)
+        deriv_func.__name__ = name_tplt + param
+        deriv_func.__doc__ = "Delay derivative wrt " + param + " \n"
+        deriv_func.__doc__ += "Parameter\n----------\ntoas: TOA table\n    "
+        deriv_func.__doc__ += "TOA point where the derivative is evaluated at.\n"
+        deriv_func.__doc__ += "Return\n---------\n Delay derivatives wrt " + param
+        deriv_func.__doc__ += " at toa."
+        setattr(self, deriv_func.__name__, deriv_func)
+
+    def _make_phase_derivative_funcs(self, param, function, name_tplt):
+        """This function is a method to help make the phase derivatives wrt timing
+        model parameters use the parameter specific name and only have the toas
+        table as input.
+        Parameter
+        ----------
+        param: str
+            Name of parameter
+        function: method
+            The method to compute the phase derivatives. It is generally in the
+            formate of 'function(toas, parameter, delay)'
+        name_tplt: str
+            The name template of the new function. The parameter name will be
+            added in the end. For example: 'd_phase_d_' is a name template.
+        Return
+        ---------
+        A phase derivative function wrt to input parameter name with the input
+        name template and parameter name.
+        """
+        def deriv_func(toas, delay):
+            return function(toas, param, delay)
+        deriv_func.__name__ = name_tplt + param
+        deriv_func.__doc__ = "Phase derivative wrt " + param + " \n"
+        deriv_func.__doc__ += "Parameter\n----------\ntoas: TOA table\n    "
+        deriv_func.__doc__ += "TOA point where the derivative is evaluated at.\n"
+        deriv_func.__doc__ += "delay: numpy array\n    Time delay for phase calculation.\n"
+        deriv_func.__doc__ += "Return\n---------\n Phase derivatives wrt " + param
+        deriv_func.__doc__ += " at toa."
+        setattr(self, deriv_func.__name__, deriv_func)
+
     def d_phase_d_tpulsar(self, toas):
         """Return the derivative of phase wrt time at the pulsar.
 
@@ -316,8 +375,9 @@ class TimingModel(object):
         phaseF = np.zeros((len(toas),2))
         for ii, val in enumerate(parv):
             par.value = val
-            phaseI[:,ii] = self.phase(toas).int
-            phaseF[:,ii] = self.phase(toas).frac
+            ph = self.phase(toas)
+            phaseI[:,ii] = ph.int
+            phaseF[:,ii] = ph.frac
         resI = (- phaseI[:,0] + phaseI[:,1])
         resF = (- phaseF[:,0] + phaseF[:,1])
         result = (resI + resF)/(2.0 * h)
