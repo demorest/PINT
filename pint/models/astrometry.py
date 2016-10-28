@@ -408,7 +408,7 @@ class AstrometryEcliptic(Astrometry):
 
         geom = numpy.cos(rd['earth_elat'])*numpy.cos(psr_elat)*\
                 numpy.sin(psr_elong-rd['earth_elong'])
-        dd_draj = rd['ssb_obs_r'] * geom / (const.c * u.radian)
+        dd_delong = rd['ssb_obs_r'] * geom / (const.c * u.radian)
 
         return dd_delong.decompose(u.si.bases)
 
@@ -440,9 +440,10 @@ class AstrometryEcliptic(Astrometry):
         rd = self.get_d_delay_quantities_ecliptical(toas)
 
         psr_elong = self.ELONG.quantity
+        psr_elat = self.ELAT.quantity
 
         te = rd['epoch'] - time_to_longdouble(self.POSEPOCH.quantity) * u.day
-        geom = numpy.cos(rd['earth_elat'])*numpy.sin(psr_elat-rd['earth_elong'])
+        geom = numpy.cos(rd['earth_elat'])*numpy.sin(psr_elong-rd['earth_elong'])
 
         deriv = rd['ssb_obs_r'] * geom * te / (const.c * u.radian)
         dd_dpmelong = deriv * u.mas / u.year
