@@ -43,5 +43,5 @@ class JumpDelay(TimingModel):
         d_delay_d_j = numpy.zeros(len(toas))
         jpar = getattr(self, jump_param)
         mask = jpar.select_toa_mask(toas)
-        d_delay_d_j[mask] = 1.0
+        d_delay_d_j[mask] = -1.0
         return d_delay_d_j * u.second/jpar.units

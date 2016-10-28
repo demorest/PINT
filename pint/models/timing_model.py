@@ -10,6 +10,7 @@ import pint.utils as utils
 import astropy.units as u
 import copy
 
+
 # parameters or lines in parfiles to ignore (for now?), or at
 # least not to complain about
 ignore_params = ['START', 'FINISH', 'SOLARN0', 'EPHEM', 'CLK', 'UNITS',
@@ -384,6 +385,31 @@ class TimingModel(object):
         # shift value back to the original value
         par.value = ori_value
         return result * u.Unit("")/unit
+
+    def d_delay_d_param_num(self, toas, param, step=1e-2):
+        """ Return the derivative of phase with respect to the parameter.
+        """
+        # TODO : We need to know the range of parameter.
+        par = getattr(self, param)
+        ori_value = par.value
+        if ori_value is None:
+             # A parameter did not get to use in the model
+            log.warn("Parameter '%s' is not used by timing model." % param)
+            return np.zeros(len(toas)) * (u.second/par.units)
+        unit = par.units
+        if ori_value == 0:
+            h = 1.0 * step
+        else:
+            h = ori_value * step
+        parv = [par.value-h, par.value+h]
+
+        delay = np.zeros((len(toas),2))
+        for ii, val in enumerate(parv):
+            par.value = val
+            delay[:,ii] = self.delay(toas)
+        d_delay = (-delay[:,0] + delay[:,1])/2.0/h
+        par.value = ori_value
+        return d_delay * (u.second/unit)
 
     def d_delay_d_param(self, toas, param):
         """
