@@ -330,7 +330,10 @@ class AstrometryEcliptic(Astrometry):
                 else:
                     self.POSEPOCH.quantity = self.PEPOCH.quantity
 
-        self.delay_derivs += []
+        self.delay_derivs += [self.d_delay_astrometry_d_ELAT,
+                              self.d_delay_astrometry_d_ELONG,
+                              self.d_delay_astrometry_d_PMELAT,
+                              self.d_delay_astrometry_d_PMELONG]
 
     @Cache.cache_result
     def coords_as_ICRS(self, epoch=None):

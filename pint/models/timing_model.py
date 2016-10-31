@@ -144,6 +144,7 @@ class TimingModel(object):
         self.model_type = None
         self.delay_derivs = []
         self.phase_derivs = []
+        self.phase_derivs_wrt_delay = []
     def setup(self):
         pass
 
@@ -157,6 +158,12 @@ class TimingModel(object):
 
         if binary_param is True:
             self.binary_params +=[param.name,]
+
+    def remove_param(self, param):
+        delattr(self, param)
+        self.params.remove(param)
+        if param in self.binary_params:
+            self.binary_params.remove(param)
 
     def set_special_params(self, spcl_params):
         als = []
@@ -340,22 +347,29 @@ class TimingModel(object):
 
 
     #@Cache.use_cache
-    def d_phase_d_param(self, toas, param):
+    def d_phase_d_param(self, toas, delay, param):
         """ Return the derivative of phase with respect to the parameter.
-
-        Either analytically, or numerically
         """
         result = 0.0
+        par = getattr(self, param)
         # TODO need to do correct chain rule stuff wrt delay derivs, etc
         # Is it safe to assume that any param affecting delay only affects
         # phase indirectly (and vice-versa)??
-        an_funcname = "d_phase_d_" + param
-        if hasattr(self, an_funcname):
-            # Have an analytic function for this parameter
-            result = getattr(self, an_funcname)(toas)
-        else:
-            result = self.d_phase_d_param_num(toas, param)
-
+        result = np.zeros(len(toas)) * u.Unit('')/par.units
+        param_phase_derivs = []
+        for f in self.phase_derivs:
+            if f.__name__.endswith('_'+param):
+                param_phase_derivs.append(f)
+        if param_phase_derivs != []:
+            for df in param_phase_derivs:
+                print df.__name__
+                result += df(toas, delay).to(u.Unit('')/par.units,
+                                         equivalencies=u.dimensionless_angles())
+        else: # Apply chain rule for the parameters in the delay.
+            d_delay_d_p = self.d_delay_d_param(toas, param)
+            for dpddf in self.phase_derivs_wrt_delay:
+                result += (dpddf(toas, delay) * d_delay_d_p).to(u.Unit('')/par.units,
+                                         equivalencies=u.dimensionless_angles())
         return result
 
     #@Cache.use_cache
@@ -402,11 +416,14 @@ class TimingModel(object):
         else:
             h = ori_value * step
         parv = [par.value-h, par.value+h]
-
         delay = np.zeros((len(toas),2))
         for ii, val in enumerate(parv):
             par.value = val
-            delay[:,ii] = self.delay(toas)
+            try:
+                delay[:,ii] = self.delay(toas)
+            except:
+                par.value = ori_value
+                raise
         d_delay = (-delay[:,0] + delay[:,1])/2.0/h
         par.value = ori_value
         return d_delay * (u.second/unit)
@@ -437,7 +454,7 @@ class TimingModel(object):
         params += [par for par in self.params if incfrozen or
                 not getattr(self, par).frozen]
 
-        F0 = self.F0.value / u.s        # 1/sec
+        F0 = self.F0.quantity        # 1/sec
         ntoas = len(toas)
         nparams = len(params)
         delay = self.delay(toas)
@@ -450,25 +467,13 @@ class TimingModel(object):
 
         M = np.zeros((ntoas, nparams))
         for ii, param in enumerate(params):
-            dpdp = "d_phase_d_" + param
-            dddp = "d_delay_d_" + param
-            print dddp, dpdp
             if param == 'Offset':
                 M[:,ii] = 1.0
                 units.append(u.s/u.s)
-            elif hasattr(self, dpdp):
-                q = getattr(self, dpdp)(toas) / F0
-                #q = self.d_phase_d_param(toas, param) / F0
-                M[:,ii] = q
-                units.append(q.unit)
             else:
-                q = self.d_delay_d_param(toas, param)
+                q = self.d_phase_d_param(toas, delay,param)
                 M[:,ii] = q
-                # TODO: Make all the derivs has unit
-                if hasattr(q, 'unit'):
-                    units.append(q.unit)
-                else:
-                    units.append(u.s/ getattr(self, param).units)
+                units.append(u.Unit("")/ getattr(self, param).units)
 
         return M, params, units
 
